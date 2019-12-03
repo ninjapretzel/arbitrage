@@ -5,20 +5,32 @@ Ready. Running.
 
 
 DONE!
-Took 12174ms
+Took 1215ms
+Found 493159 profitable cycles!
 
 
-Best arbitrage:
+Best Overall arbitrage:
 {
-  start: 'Sweden',
-  at: 'Sweden',
-  rate: 1.244332153361345,
+  start: 'Canada',
+  at: 'Canada',
+  rate: 1.2443321533613452,
   path: [
-    'Sweden', 'Dollar',
     'Canada', 'Euro',
     'Pound',  'Yen',
     'Norway', 'Australia',
-    'Ruble',  'Sweden'
-  ]
+    'Ruble',  'Sweden',
+    'Dollar', 'Canada'
+  ],
+  score: 0.027148017040149464
+}
+
+
+Most efficient arbitrage:
+{
+  start: 'Yen',
+  at: 'Yen',
+  rate: 1.12575,
+  path: [ 'Yen', 'Norway', 'Australia', 'Yen' ],
+  score: 0.04191666666666668
 }
 ```
