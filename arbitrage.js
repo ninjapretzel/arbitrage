@@ -33,6 +33,8 @@ for (let i = 0; i < lines.length; i++) {
 	
 	// Split line on any whitespace
 	let parts = line.split(/\s+/);
+	// Just in case, remove any empty strings
+	parts = parts.filter( (it) => (it != "") )
 	// console.log(parts)
 	// Skip any line with any number other than 3 things on it
 	if (parts.length != 3) { continue; }
@@ -123,7 +125,7 @@ while (queue.length > 0) {
 		// If we haven't been there yet...
 		// (skips revisiting nodes, or transitioning to start)
 		if (!data.path.includes(k)) {
-			console.log(data.path + " does not have " + k);
+			//console.log(data.path + " does not have " + k);
 			// Take transition to node k
 			let trace = stepTo(data, k);
 			// Step the transitioned node back to its start
