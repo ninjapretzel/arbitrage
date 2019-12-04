@@ -27,13 +27,15 @@ let lines = text.split('\n')
 // once loaded, 
 //		graph["Canada"]["Dollar"] will hold conversion rate for CND$ to US$
 //		graph["Dollar"]["Canada"] will hold conversion rate for US$ to CND$
+
+// Create our data structures...
 let graph = {}
 // work queue, holds stuff we still need to do
 let queue = new Queue()
 // List of profitable finished paths.
 // We don't need to care about unprofitable paths
 // Unprofitable paths are just the reverse of profitable ones
-var finished = []
+var profitable = []
 
 
 // Loop over each line
@@ -73,7 +75,6 @@ for (let i = 0; i < lines.length; i++) {
 
 // console.log(graph);
 
-
 // Measure the score for a node in the same units it started in 
 // Transition it back to the starting point and get a score
 function stepToStart(data) {
@@ -91,11 +92,11 @@ function stepTo(data, place) {
 			start: data.start, // Same starting location
 			at: place,			// Now at that place 
 			rate: nextRate, // Apply rate change 
+			// And this was an addition, score the nodes based off of the gains per trade.
+			score: (nextRate - 1.0) / (data.path.length),
 			path: [ ... data.path, place ], // update path with new place 
 			// ... is the spread operator, it takes everything data.path,
 			// and 'spreads' those values in order in the new array.
-			// And this was an addition, score the nodes based off of the gains per trade.
-			score: (nextRate - 1.0) / (data.path.length)
 		}
 	}
 	// if we're already there, just return the data.
@@ -104,15 +105,15 @@ function stepTo(data, place) {
 
 
 //* This will find all possible cycles, and score them properly.
-Object.keys(graph).forEach((k) => {
+for (key in graph) {
 	queue.put( { 
-		start: k, // Remember where we start
-		at: k, // current location is where we are starting initially
+		start: key, // Remember where we start
+		at: key, // current location is where we are starting initially
 		rate: 1, // Start with a rate of 1.0
 		score: 0, // No score because no trades/gains.
-		path: [ k ],  // Remember everywhere we have been
+		path: [ key ],  // Remember everywhere we have been
 	} );
-})
+}
 //*/
 
 /* 
@@ -141,56 +142,77 @@ while (queue.count() > 0) {
 	let data = queue.take();
 	let compare = stepToStart(data);
 	// Loop over all vertex names in our graph
-	Object.keys(graph).forEach((k) => {
+	for (key in graph) {
 		// If we haven't been there yet...
 		// (skips revisiting nodes, or transitioning to start)
-		if (!data.path.includes(k)) {
+		if (!data.path.includes(key)) {
 			//console.log(data.path + " does not have " + k);
 			// Take transition to node k
-			let trace = stepTo(data, k);
+			let trace = stepTo(data, key);
 			// Step the transitioned node back to its start
 			let final = stepToStart(trace);
 			
 			// Check that node's score, if it's profitable, add to list.
 			if (final.rate > 1) {
-				finished.push(final)
+				profitable.push(final)
 			}
 			
-			// Ad the transitioned node back to the queue.
-			// unshift adds to opposite end of queue
-			// so pop() doesn't remove it immediately
-			// queue.unshift(trace);
-			// Custom Queue version:
+			// Check if taking the step to key makes us better-
+			// if it does, then add it into the queue to revisit later.
 			if (final.rate >= compare.rate) {
+				// Add the transitioned node back to the queue.
+				// unshift adds to opposite end of queue
+				// so pop() doesn't remove it immediately
+				// queue.unshift(trace);
+				// Custom Queue version:
 				queue.put(trace);
 			}
 				
 		} else {
 			// If we have been there, skip it.
 		}
-	});
+	}
 		
 }
 // Take end timestamp
-let endDate = new Date();
-let diff = endDate.getTime() - startDate.getTime();
+const endDate = new Date();
+const diff = endDate.getTime() - startDate.getTime();
 	
 console.log("\n\nDONE!");
 console.log("Took " + diff + "ms");	
-console.log("Found " + finished.length + " profitable cycles!");	
+console.log("Found " + profitable.length + " profitable cycles!");
 
-// Sort the data.
+// Sort the data ascending.
 // Comparison function is the parameter
-finished.sort( (a,b) => { return b.rate - a.rate; } );
+profitable.sort( (a,b) => { return a.rate - b.rate; } );
+
+const output = []
+// Loop over profitable paths
+for (let i in profitable) {
+	output[i] = `Path: ${profitable[i].path}, $1,000 => $${(profitable[i].rate * 1000).toFixed(2)} `
+}
+
+// Sort the data descending.
+profitable.sort( (a,b) => { return b.rate - a.rate; } );
 
 // Print the best one!
 console.log("\n\nBest Overall arbitrage:");
-console.log(finished[0]);
+console.log(profitable[0]);
+// Also to output file
+output[output.length] = "\n\nBest Overall arbitrage:"
+// Have to manually stringify, console.log does this automatically. 
+output[output.length] = JSON.stringify(profitable[0], null, '\t') 
 
-
-finished.sort( (a,b) => { return b.score - a.score; } );
-
+// Sort the data descending by score
+profitable.sort( (a,b) => { return b.score - a.score; } );
 
 // Print the actually best one!
 console.log("\n\nMost efficient arbitrage:");
-console.log(finished[0]);
+console.log(profitable[0]);
+// Also to output file
+output[output.length] = "\n\nMost efficient arbitrage:"
+// Have to manually stringify, console.log does this automatically. 
+output[output.length] = JSON.stringify(profitable[0], null, '\t')
+
+// Write output to file
+fs.writeFileSync("./outputjs.txt", output.join("\n"))
