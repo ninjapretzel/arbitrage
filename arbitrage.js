@@ -7,10 +7,10 @@ const fs = require("fs");
 // So instead I figured I'd make a little queue that mimiced what I thought the go version was doing
 // Turns out that this is really, really, really fast.
 function Queue() {
-	this.stuff = []
-	this.added = 0
+	this.stuff = [];
+	this.added = 0;
 	this.removed = 0;
-	this.put = (thing )=>{ this.stuff[this.added++] = thing; }
+	this.put = (thing)=>{ this.stuff[this.added++] = thing; }
 	this.take = ()=>{ let it = this.stuff[this.removed]; this.stuff[this.removed++] = undefined; return it; }
 	this.count = ()=>{ return this.added - this.removed; }
 }
@@ -139,6 +139,7 @@ while (queue.count() > 0) {
 	// let data = queue.pop();
 	// Custom Queue version:
 	let data = queue.take();
+	let compare = stepToStart(data);
 	// Loop over all vertex names in our graph
 	Object.keys(graph).forEach((k) => {
 		// If we haven't been there yet...
@@ -160,7 +161,10 @@ while (queue.count() > 0) {
 			// so pop() doesn't remove it immediately
 			// queue.unshift(trace);
 			// Custom Queue version:
-			queue.put(trace);
+			if (final.rate >= compare.rate) {
+				queue.put(trace);
+			}
+				
 		} else {
 			// If we have been there, skip it.
 		}

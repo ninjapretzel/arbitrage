@@ -88,8 +88,8 @@ func loadFile(filename string) graph {
 		parts := whitespace.Split(line, -1)
 		// fmt.Println(len(parts))
 
-		// if len(parts) != 3 { // HEY- if this doesn't work, try toggling comments between these two lines
-		if len(parts) != 4 { // HEY- if this doesn't work, try toggling comments between these two lines
+		if len(parts) != 3 { // HEY- if this doesn't work, try toggling comments between these two lines
+			//if len(parts) != 4 { // HEY- if this doesn't work, try toggling comments between these two lines
 			// Explanation: windows leaves an extra empty-string element at the end of the slice the slice
 			// Saad didn't have this problem on his mac.
 			// this is janky stuff that makes cross-platform code harder to achieve,
@@ -217,6 +217,8 @@ func main() {
 		// Remove first thing from queue, this [a:b] range thing is called 'reslicing'.
 		workQueue = workQueue[1:len(workQueue)]
 
+		compare := stepToStart(data)
+
 		// Loop over keys, discard the index with _
 		for _, k := range keys {
 			// If we don't have the thing in our path yet...
@@ -231,8 +233,11 @@ func main() {
 				if final.rate > 1 {
 					finished = append(finished, final)
 				}
-				// And append the next one to our work queue
-				workQueue = append(workQueue, next)
+
+				// Avoid negative flow!
+				if final.rate >= compare.rate {
+					workQueue = append(workQueue, next)
+				}
 			}
 		}
 	}
