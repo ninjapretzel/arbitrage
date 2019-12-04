@@ -202,7 +202,7 @@ namespace Arbitrage {
 			output.Append("\n\nMost Efficient Arbitrage: \n" + profitable[0]);
 
 			// Dump output to file
-			File.WriteAllText(SourceFileDirectory()+"/output.txt", output.ToString());
+			File.WriteAllText(SourceFileDirectory()+"/outputcs.txt", output.ToString());
 
 			// Pause console
 			Console.WriteLine("\nPress Enter to continue...");
