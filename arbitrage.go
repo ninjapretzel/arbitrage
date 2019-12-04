@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -246,19 +247,42 @@ func main() {
 	// Difference!
 	diff := end.Sub(start)
 
+	// Create a StringBuilder to speed up output printing.
+	var output strings.Builder
+	for _, data := range finished {
+		output.WriteString("Path: [ ")
+		output.WriteString(strings.Join(data.path, " => "))
+		output.WriteString("], $1,000 => $")
+		output.WriteString(fmt.Sprintf("%.2f", data.rate*1000.0))
+		output.WriteString("\n")
+	}
+
 	// Finally, done! Even prints out the difference nicely.
-	fmt.Println("Done! took", diff, "!")
+	fmt.Println("Done! took ", diff, "!")
 	fmt.Println("got", len(finished), "things")
+	// Also print to file...
+	output.WriteString("Done! took")
+	output.WriteString(diff.String())
+	output.WriteString("!\ngot ")
+	output.WriteString(fmt.Sprintf("%d", len(finished)))
+	output.WriteString(" things!")
 
 	// Sort our stuff by total rate
 	sort.Sort(byRate(finished))
 	fmt.Println("\n\nBest overall is:") // Will be of length 9 (124.43% total, but only +2.7148% per trade...)
 	printData(finished[0])
+	// Also print to file...
+	output.WriteString("\n\nBestOverall is:\n")
+	output.WriteString(fmt.Sprintf("%+v", finished[0]))
 	// Sort our stuff by efficiency score
 	sort.Sort(byScore(finished))
 	fmt.Println("\n\nMost efficient is:") // Will Be NOR -> AUS -> YEN -> NOR cycle (only  112.575% total, but a whopping +4.191666% per trade!!!)
 	printData(finished[0])
+	output.WriteString("\n\nMost efficient is:\n")
+	output.WriteString(fmt.Sprintf("%+v", finished[0]))
 
+	// Finally write built string to a file
+	ioutil.WriteFile("./outputgo.txt", []byte(output.String()), os.ModeIrregular)
 }
 
 func printData(data workData) {
