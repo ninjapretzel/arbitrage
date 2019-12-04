@@ -177,20 +177,25 @@ while (queue.count() > 0) {
 // Take end timestamp
 const endDate = new Date();
 const diff = endDate.getTime() - startDate.getTime();
-	
-console.log("\n\nDONE!");
-console.log("Took " + diff + "ms");	
-console.log("Found " + profitable.length + " profitable cycles!");
 
 // Sort the data ascending.
 // Comparison function is the parameter
 profitable.sort( (a,b) => { return a.rate - b.rate; } );
 
-const output = []
-// Loop over profitable paths
-for (let i in profitable) {
-	output[i] = `Path: ${profitable[i].path}, $1,000 => $${(profitable[i].rate * 1000).toFixed(2)} `
-}
+// Fast output building, we use an array.
+// the Array.map() function takes the array, 
+//		creates another array of the same length,
+//		with the given transformation applied to each element.
+// In this case, we have an array of printouts of the profitable paths.
+const output = profitable.map(it => `Path: ${it.path}, $1,000 => $${(it.rate * 1000).toFixed(2)} `)
+
+
+console.log("\n\nDONE!");
+console.log("Took " + diff + "ms");	
+// Also to output file
+output[output.length] = "Took " + diff + "ms";
+console.log("Found " + profitable.length + " profitable cycles!");
+output[output.length] = "Found " + profitable.length + " profitable cycles!";
 
 // Sort the data descending.
 profitable.sort( (a,b) => { return b.rate - a.rate; } );
