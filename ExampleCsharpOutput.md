@@ -1,9 +1,10 @@
 # C#/Mono Example Output
-```λ mcs arbitrage.cs && mono arbitrage.exe
+```
+λ mcs arbitrage.cs && mono arbitrage.exe
 Ready. Running.
 
 
-Finished in 31.9136ms
+Finished in 25.9582ms
 
 
 Best Overall Arbitrage:
@@ -16,6 +17,4 @@ Most Efficient Arbitrage:
 Path: [Yen -> Norway -> Australia -> Yen]
 Rate: 1.12575
 Score: 0.0419166666666667
-
-Press Enter to continue...
 ```
