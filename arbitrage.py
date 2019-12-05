@@ -1,11 +1,18 @@
 import datetime
 
+# Open file and read all lines
 with open("stuff.dat", "r") as file:
 	lines = file.read().split('\n')
 	#data = file.read()
 
+# Create data structures for stuff
+# graph is a Dictionary of string: Dictionary
+# Outer dictionary stores all valid vertex names as keys
+# Inner dictionaries store transition costs to other verticies 
 graph = { }
-queue = []
+# We'll use a array as a queue
+queue = [ ]
+# And another for the ones that proiftable
 profitable = []
 for line in lines:
 	parts = line.split()
