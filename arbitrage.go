@@ -261,7 +261,7 @@ func main() {
 	fmt.Println("Done! took ", diff, "!")
 	fmt.Println("got", len(finished), "things")
 	// Also print to file...
-	output.WriteString("Done! took")
+	output.WriteString("Done! took ")
 	output.WriteString(diff.String())
 	output.WriteString("!\ngot ")
 	output.WriteString(fmt.Sprintf("%d", len(finished)))
