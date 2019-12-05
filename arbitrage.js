@@ -42,9 +42,7 @@ var profitable = []
 for (let i = 0; i < lines.length; i++) {
 	let line = lines[i];
 	// Ignore comment lines ( actually doesn't matter tho... )
-	if (line.indexOf("//") == 0) { 
-		continue; 
-	}
+	if (line.indexOf("//") == 0) { continue; }
 	
 	// Split line on any whitespace
 	let parts = line.split(/\s+/);
@@ -77,10 +75,9 @@ for (let i = 0; i < lines.length; i++) {
 
 // Measure the score for a node in the same units it started in 
 // Transition it back to the starting point and get a score
-function stepToStart(data) {
-	// Step a node back to starts
-	return stepTo(data, data.start);
-}
+// Step a node back to starts
+function stepToStart(data) { return stepTo(data, data.start); }
+
 // transition a node to place in the graph
 function stepTo(data, place) {
 	// If this node is not already there:
@@ -153,27 +150,15 @@ while (queue.count() > 0) {
 			let final = stepToStart(trace);
 			
 			// Check that node's score, if it's profitable, add to list.
-			if (final.rate > 1) {
-				profitable.push(final)
-			}
+			if (final.rate > 1) { profitable.push(final) }
 			
 			// Check if taking the step to key makes us better-
 			// if it does, then add it into the queue to revisit later.
-			if (final.rate >= compare.rate) {
-				// Add the transitioned node back to the queue.
-				// unshift adds to opposite end of queue
-				// so pop() doesn't remove it immediately
-				// queue.unshift(trace);
-				// Custom Queue version:
-				queue.put(trace);
-			}
-				
-		} else {
-			// If we have been there, skip it.
-		}
-	}
-		
-}
+			if (final.rate >= compare.rate) { queue.put(trace); }
+		} else { /* If we have been there, skip it. */ }
+	} // End Graphloop
+} // End workloop 
+
 // Take end timestamp
 const endDate = new Date();
 const diff = endDate.getTime() - startDate.getTime();
@@ -188,7 +173,6 @@ profitable.sort( (a,b) => { return a.rate - b.rate; } );
 //		with the given transformation applied to each element.
 // In this case, we have an array of printouts of the profitable paths.
 const output = profitable.map(it => `Path: ${it.path}, $1,000 => $${(it.rate * 1000).toFixed(2)} `)
-
 
 console.log("\n\nDONE!");
 console.log("Took " + diff + "ms");	
