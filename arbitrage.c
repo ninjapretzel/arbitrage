@@ -158,22 +158,20 @@ int32_t strCompare(void* a, void* b) {
 char** strSplit(char* str, const char* delim, int32_t* outLength) { 
 	int32_t length = strlen(str);
 	int32_t delims = strlen(delim);
-	
-	char* at = strtok(str, delim);
-	// Tokenize the whole string
-	while (at != NULL) { at = strtok(NULL, delim); }
-	
-	// Loop back over original string, count splits
 	int32_t splits = 0;
 	int32_t state = 0;
+
 	// Loop back over original string, count splits
 	for (int32_t i = 0; i < length; i++) {
 		for (int32_t k = 0; k < delims; k++){
 			// also making any delimited characters nulls before doing so
 			// because we might as well go straight to hell
+			// thought strtok would do this but it doesn't so f it.
 			if (str[i] == delim[k]) { str[i] = '\0'; }
 		}
-		
+		// Tiny state machine to remember 
+		// if we are in a sequence of nulls 
+		// or valid chars string
 		if (state == 0) {
 			// Searching for non-nulls.
 			if (str[i] != '\0') { 
@@ -464,6 +462,7 @@ int32_t ListAdd(List* this, void* elem) {
 		#endif // DEBUG
 		if (ListEnsureCapacity(this, (this->capacity)*2) < 0) { return 0; }
 	}
+	// just faster to memcpy...
 	memcpy(this->data + (this->size * this->count), elem, this->size);
 	this->count+=1;
 	return this->count;
@@ -490,6 +489,7 @@ int32_t ListRemove(List* this, int32_t index) {
 	if (index < count) {
 		void* to = data + (size * index);
 		void* from = to + size;
+		// just faster to memcpy...
 		memcpy(to, from, size * (count - index));
 	}
 	memset(data + size * count, 0, size);
@@ -511,17 +511,8 @@ int32_t ListAddMany(List* this, void* item, int32_t num) {
 		int32_t err = ListEnsureCapacity(this, newCount);
 		if (err) { return -1; }
 	}
-	
-	
-	uint8_t* ray = (uint8_t*) this->data;
-	const size_t size = this->size;
-	uint8_t* position = ray + (size * this->count);
-	uint8_t* itemData = (uint8_t*)item;
-	
-	for (int32_t i = 0; i < num * size; i++) {
-		position[i] = itemData[i];
-	}
-	
+	// just faster to memcpy...
+	memcpy(this->data + (this->size * this->count), item, this->size * num);
 	this->count += num;
 	return this->count;
 }
@@ -549,6 +540,10 @@ int32_t ListContains(List* this, void* target, Compare compare) {
 	}
 	
 	return 0;
+}
+
+void ListSort(List* this, Compare compare) {
+	qqsort(this->data, this->size, compare, 0, this->count-1);
 }
 
 ///Copies content of List* a into List* b.
@@ -1065,9 +1060,9 @@ Vector4 V4(float a, float b, float c, float d){
 	Vector4 v; v.x = a; v.y = b; v.z = c; v.w = d; return v;
 }
 int32_t compareV4ByZ(void* a, void* b) {
-	Vector4 av = *(Vector4*)a;
-	Vector4 bv = *(Vector4*)b;
-	return ((int32_t)av.z)-((int32_t)bv.z);
+	Vector4* av = (Vector4*)a;
+	Vector4* bv = (Vector4*)b;
+	return ((int32_t)av->z)-((int32_t)bv->z);
 }
 
 void testGarbage() {
@@ -1159,56 +1154,77 @@ void testGarbage() {
 }
 
 void testList() {
-	List* strs = newList(sizeof(char**));
-	char* strarr[] = { 
-		"ayy", "bee", "cee", "dee", "aee", 
-		"eff", "gee", "eich", "aye", "jay",
-		"kay", "ell", "emm", "enn", "owh", 
-		"pee", "queue", "arr", "ess", "tea",
-		"you", "vee", "dubya", "ecks", "why", 
-		"zeeee" };
+	{ // Cramming stuff into a list and removing some of it to make sure it works properly.
+		List* strs = newList(sizeof(char**));
+		char* strarr[] = { 
+			"ayy", "bee", "cee", "dee", "aee", 
+			"eff", "gee", "eich", "aye", "jay",
+			"kay", "ell", "emm", "enn", "owh", 
+			"pee", "queue", "arr", "ess", "tea",
+			"you", "vee", "dubya", "ecks", "why", 
+			"zeeee" };
+			
+		for (int32_t i = 0; i < ARRAY_LENGTH(strarr); i++) {
+			char* str = strarr[i];
+			ListAdd(strs, &str);
+		}
 		
-	for (int32_t i = 0; i < ARRAY_LENGTH(strarr); i++) {
-		char* str = strarr[i];
-		ListAdd(strs, &str);
+		// ListAdd(strs, &a);
+		// ListAdd(strs, &b);
+		// ListAdd(strs, &c);
+		printf("\n\n");
+		
+		for (int i = 0; i < strs->count; i++) {
+			char** cs = (char**) ListGet(strs, i);
+			printf("%i: %s\n", i, *cs);
+		}
+		
+		int32_t result = ListRemove(strs, 0);
+		printf("Remove result: %d\n", result);
+		
+		
+		for (int i = 0; i < strs->count; i++) {
+			char** cs = (char**) ListGet(strs, i);
+			printf("%i: %s\n", i, *cs);
+		}
+		
+		result = ListRemove(strs, strs->count-1);
+		printf("Remove result2: %d\n", result);
+		for (int i = 0; i < strs->count; i++) {
+			char** cs = (char**) ListGet(strs, i);
+			printf("%i: %s\n", i, *cs);
+		}
+		
+		
+		result = ListRemove(strs, 9);
+		printf("Remove result3: %d\n", result);
+		for (int i = 0; i < strs->count; i++) {
+			char** cs = (char**) ListGet(strs, i);
+			printf("%i: %s\n", i, *cs);
+		}
+		killList(strs);	
+	}
+		
+	{ // Does a list make a good strbuilder? Lessee.
+		List* strbuilder = newList(sizeof(char));
+		char* a = "hello";
+		char* b = "world";
+		char* space = " ";
+		char null = '\0';
+		ListAddMany(strbuilder, a, strlen(a));
+		ListAddMany(strbuilder, space, strlen(space));
+		ListAddMany(strbuilder, a, strlen(a));
+		ListAddMany(strbuilder, space, strlen(space));
+		ListAddMany(strbuilder, b, strlen(b));
+		ListAddMany(strbuilder, space, strlen(space));
+		ListAddMany(strbuilder, b, strlen(b));
+		ListAdd(strbuilder, &null);
+		
+		printf("built a string!: \"%s\"\n", strbuilder->data);
+		
+		killList(strbuilder);
 	}
 	
-	// ListAdd(strs, &a);
-	// ListAdd(strs, &b);
-	// ListAdd(strs, &c);
-	printf("\n\n");
-	
-	for (int i = 0; i < strs->count; i++) {
-		char** cs = (char**) ListGet(strs, i);
-		printf("%i: %s\n", i, *cs);
-	}
-	
-	int32_t result = ListRemove(strs, 0);
-	printf("Remove result: %d\n", result);
-	
-	
-	for (int i = 0; i < strs->count; i++) {
-		char** cs = (char**) ListGet(strs, i);
-		printf("%i: %s\n", i, *cs);
-	}
-	
-	result = ListRemove(strs, strs->count-1);
-	printf("Remove result2: %d\n", result);
-	for (int i = 0; i < strs->count; i++) {
-		char** cs = (char**) ListGet(strs, i);
-		printf("%i: %s\n", i, *cs);
-	}
-	
-	
-	result = ListRemove(strs, 9);
-	printf("Remove result3: %d\n", result);
-	for (int i = 0; i < strs->count; i++) {
-		char** cs = (char**) ListGet(strs, i);
-		printf("%i: %s\n", i, *cs);
-	}
-	
-	
-	killList(strs);
 }
 
 
@@ -1312,10 +1328,65 @@ WorkData stepToStart(WorkData data) {
 	return stepTo(data, data.start);
 }
 
+int32_t compareWorkByRateAscending(void* a, void* b) {
+	double arate = ((WorkData*)a)->rate;
+	double brate = ((WorkData*)b)->rate;
+	if (arate < brate) { return -1; }
+	if (arate > brate) { return 1; }
+	return 0;
+}
+int32_t compareWorkByRateDescending(void* a, void* b) {
+	double arate = ((WorkData*)a)->rate;
+	double brate = ((WorkData*)b)->rate;
+	if (arate > brate) { return -1; }
+	if (arate < brate) { return 1; }
+	return 0;
+}
+int32_t compareWorkByScoreDescending(void* a, void* b) {
+	double ascore = ((WorkData*)a)->score;
+	double bscore = ((WorkData*)b)->score;
+	if (ascore > bscore) { return -1; }
+	if (ascore < bscore) { return 1; }
+	return 0;
+}
+
+void printPath(List* path, List* to) {
+	int32_t count = path->count;
+	if (to == NULL) {
+		printf("[ ");
+		for (int32_t i = 0; i < count; i++) {
+			char* str = *(char**)ListGet(path, i);
+			printf("%s ", str);
+			if (i+1 < count) { printf("-> "); }
+		}
+		printf("]");
+	} else {
+		ListAddMany(to, "[ ", 2);
+		char buffer[1024];
+		for (int32_t i = 0; i < count; i++) {
+			char* str = *(char**)ListGet(path, i);
+			int32_t printed = snprintf(buffer, 1024, "%s ", str);
+			ListAddMany(to, buffer, printed);
+			
+			
+			if (i+1 < count) { 
+				ListAddMany(to, "-> ", 3); 
+			}
+		}
+		// print null to terminate string
+		ListAddMany(to, "]\0", 2);
+		
+	}
+		
+}
+
+
+
 /// Finally, entry point.
 int main(char** argv) {
 	interned = newMap(sizeof(char*), sizeof(char*), strHash, strCompare);
 	
+	// Used these while I was developing the libraries to make sure stuff worked.
 	//testGarbage();
 	//testList();
 	//testMap();
@@ -1329,7 +1400,7 @@ int main(char** argv) {
 	// Open file for reading.
 	FILE* fp = fopen("stuff.dat", "r");
 	if (fp == NULL) { 
-		printf("Error opening stuff.dat"); 
+		printf("\n Error: Failed to open 'stuff.dat'\n\n"); 
 		return -1; 
 	}
 	
@@ -1375,10 +1446,8 @@ int main(char** argv) {
 				
 				// Create transitions between currencies.
 				double invRate = 1.0 / rate;
-				// printf("[%s] => [%s] : %lf\n", from, to, rate);
-				// printf("[%s] => [%s] : %lf\n\n", to, from, invRate);
 				MapPut(fromMap, &to, &rate);
-				MapPut(toMap, &from, &invRate);	
+				MapPut(toMap, &from, &invRate);
 			}
 		}
 		
@@ -1430,12 +1499,14 @@ int main(char** argv) {
 	
 	int64_t start = microtime_();
 	while (queue->count > 0) {
-		//printf("Only %i left!\n", queue->count);
+		// printf("Only %i left!\n", queue->count);
 		// Copy out before remove
 		WorkData data = *(WorkData*)ListGet(queue, 0);
 		ListRemove(queue, 0);
 		
-		//printf("Currently at %s\n", data.at);
+		// printf("Currently at %s\n", data.at);
+		// printPath(data.path, NULL);
+		// printf("\n");
 		WorkData compare = stepToStart(data);
 		
 		for (int32_t i = 0; i < nodes; i++) {
@@ -1460,21 +1531,75 @@ int main(char** argv) {
 				// skip places we've been.
 			}
 			
-			
-			
-		
 		}
 		// Only thing that is malloc'd in work is the path list.
 		killList(data.path);
 	}
 	int64_t end = microtime_();
-	double diff = end - start;
-	printf("Done! Took %lfms", diff/1000);
+	double diff = (end - start)/1000.0;
+	int32_t profitableCount = profitable->count;
+	printf("\n\nDone!\n");
+	
+	// Create a list of chars as a StringBuilder...
+	List* strbuilder = newList_cap(sizeof(char), 1024);
+	// Another strbuilder for reuse
+	List* pathstr = newList_cap(sizeof(char), 1024);
+	// Sort data by ascending.
+	
+	ListSort(profitable, compareWorkByRateAscending);
+	char buffer[1024];
+	int32_t printed;
+	for (int32_t i = 0 ; i < profitableCount; i++) {
+		//printf("\nTook %lfms\nFound %i profitable cycles!", diff/1000.0, profitableCount);
+		WorkData data = *(WorkData*)ListGet(profitable, i);
+		ListClear(pathstr);
+		printPath(data.path, pathstr);
+		
+		double earned = 1000.0 * data.rate;
+		printed = snprintf(buffer, 1024, "Path: %s, $1000 => $%.2f\n", pathstr->data, earned);
+		
+		ListAddMany(strbuilder, buffer, printed);
+	}
+	
+	
+	// printf("\nTook %fms\nFound %i profitable cycles!", diff, profitableCount);
+	
+	printed = snprintf(buffer, 1024, "Took %.3fms\nFound %i profitable cycles!", diff, profitableCount);
+	printf("%s", buffer);
+	ListAddMany(strbuilder, buffer, printed);
+	
+	ListSort(profitable, compareWorkByRateDescending);
+	WorkData bestRate = *(WorkData*)ListGet(profitable, 0);
+	ListClear(pathstr);
+	printPath(bestRate.path, pathstr);
+	printed = snprintf(buffer, 1024, "\n\nBest Overall Arbitrage: {\n\tRate: %.3f,\n\tScore: %.3f,\n\tPath: %s\n}", bestRate.rate, bestRate.score, pathstr->data);
+	printf("%s", buffer);
+	ListAddMany(strbuilder, buffer, printed);
+	
+	ListSort(profitable, compareWorkByScoreDescending);
+	WorkData bestScore = *(WorkData*)ListGet(profitable, 0);
+	ListClear(pathstr);
+	printPath(bestScore.path, pathstr);
+	printed = snprintf(buffer, 1024, "\n\nMost Efficient Arbitrage: {\n\tRate: %.3f,\n\tScore: %.3f,\n\tPath: %s\n}", bestScore.rate, bestScore.score, pathstr->data);
+	printf("%s", buffer);
+	ListAddMany(strbuilder, buffer, printed);
 	
 	//*/
 	
+	FILE* fw = fopen("outputc.txt", "w");
+	if (fw == NULL) {
+		printf("\nError: Failed to open 'outputc.txt'\n\n");
+		return -1;
+	}
+	fprintf(fw, "%s", strbuilder->data);
+	fclose(fw);
 	
+	killList(strbuilder);
+	killList(pathstr);
 	
+	killList(profitable);
+	killList(queue);
+	//killMap(graph);
 	
 	return 0;
 }
