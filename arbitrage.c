@@ -1458,9 +1458,9 @@ int main(char** argv) {
 	fclose(fp);
 	printf("Done loading graph, there are %i currencies.", graph->count);
 	
-	printf("Printing out json representation of the graph, with lots of printfs:\n");
-	printf("\t(also seeding work queue with workdatas!)\n");
-	printf("{\n");
+	//printf("Printing out json representation of the graph, with lots of printfs:\n");
+	//printf("\t(also seeding work queue with workdatas!)\n");
+	//printf("{\n");
 	int32_t nodes = graph->count;
 	for (int32_t i = 0; i < nodes; i++) {
 		void* pos = ListGet(graph->pairs, i);
@@ -1468,7 +1468,7 @@ int main(char** argv) {
 		char* nodeName = *(char**)pair.key;
 		Map* nodeRates = *(Map**)pair.val;
 		
-		printf("\t%s: { ", nodeName);
+		//printf("\t%s: { ", nodeName);
 		int32_t transitionCount = nodeRates->count;
 		for (int32_t k = 0; k < transitionCount; k++) {
 			void* pos2 = ListGet(nodeRates->pairs, k);
@@ -1476,9 +1476,9 @@ int main(char** argv) {
 			char* targetName = *(char**)pair2.key;
 			double targetRate = *(double*)pair2.val;
 			
-			printf("%s: %lf, ", targetName, targetRate);
+			//printf("%s: %lf, ", targetName, targetRate);
 		}
-		printf("}\n");
+		//printf("}\n");
 		
 		WorkData data;
 		// These would have been interned, so we good.
@@ -1492,11 +1492,9 @@ int main(char** argv) {
 		// Copy data into queue.
 		ListAdd(queue, &data);
 	}
-	printf("}\n\n");
-	printf("Wow that was a pain huh.\n");
-	printf("We have %i queued work to do, guess that means we can finally start traversing the graph\n", queue->count);
-	
-	
+	//printf("}\n\n");
+	printf("Graph seeded with %i queued work.\n", queue->count);
+	printf("Going now...\n", queue->count);
 	int64_t start = microtime_();
 	while (queue->count > 0) {
 		// printf("Only %i left!\n", queue->count);
