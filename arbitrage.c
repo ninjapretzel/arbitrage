@@ -1287,103 +1287,144 @@ void testMap() {
 
 /// Struct for holding where we currently are in the graph.
 typedef struct WorkData {
+	/// Starting location
 	char* start;
+	/// Current location
 	char* at;
+	/// Current rate
 	double rate;
+	/// Current score
 	double score;
+	/// Path to get to current node 
 	List* path;
 } WorkData;
 
+// Global data structures.
+// Can't initialize them statically, has to be done in main.
+/// Map<char*, Map<char*, double>> containing the graph nodes and transitions.
 Map* graph;
+/// List<WorkData> to act as a queue of work to do 
+/// Probably a few ms could be shaved off the time if I implemented a proper linked-list queue.
 List* queue;
+/// List<WorkData> to be filled with profitable cycles as they are discovereed.
 List* profitable;
 
 
+/// Helper function to step a WorkData to a new place.
+/// Returns a copy of data in the new location
+/// (since C is always pass-by-value unless you explicitly pass pointers)
 WorkData stepTo(WorkData data, char* place) {
+	// Compare names of nodes to see if they are at the same place 
 	int32_t diff = strcmp(data.at, place);
+	// If it's not already there...
 	if (diff != 0) {
+		// Get Check the graph for transition from data.at to place
 		Map** check1 = MapGet(graph, &data.at);
-		if (check1 != NULL) {
+		if (check1 != NULL) { 
 			double* check2 = MapGet(*check1, &place);
-			if (check2 != NULL) {
+			if (check2 != NULL) { 
+				// exchange rate extracted from graph
 				double rate = *check2;
-				//printf("\t%s -> %s, *%lf\n", data.at, place, rate);
+				
+				// Create data to return 
 				WorkData next;
+				// Starts at same node
 				next.start = data.start;
+				// transitioned to new node
 				next.at = place;
+				// Apply exchange rate
 				next.rate = data.rate * rate;
+				// And score based on total trades
 				next.score = (next.rate - 1.0) / data.path->count;
+				// Create a new list with enough space for the path to the new node
 				next.path = newList_cap(sizeof(char*), data.path->count+1);
+				// Copy old path
 				ListCopy(data.path, next.path);
+				// Add new path on end
 				ListAdd(next.path, &place);
 				
+				// Finally return transitioned data....
 				return next;
 			}
 		}
 	}
+	// Or return copy of data if there's no transition to take
 	return data;
 }
 
+/// Helper function to step a WorkData back to its starting location.
 WorkData stepToStart(WorkData data) {
 	return stepTo(data, data.start);
 }
 
+/// Compare function to sort WorkData by their rates
 int32_t compareWorkByRateAscending(void* a, void* b) {
-	double arate = ((WorkData*)a)->rate;
-	double brate = ((WorkData*)b)->rate;
-	if (arate < brate) { return -1; }
-	if (arate > brate) { return 1; }
-	return 0;
+	// cast/dereference values we care about
+	double aval = ((WorkData*)a)->rate;
+	double bval = ((WorkData*)b)->rate;
+	return aval < bval ? -1 
+		: (aval > bval ? 1 : 0);
 }
+/// Compare function to reverse sort WorkData by their rates
 int32_t compareWorkByRateDescending(void* a, void* b) {
-	double arate = ((WorkData*)a)->rate;
-	double brate = ((WorkData*)b)->rate;
-	if (arate > brate) { return -1; }
-	if (arate < brate) { return 1; }
-	return 0;
+	double aval = ((WorkData*)a)->rate;
+	double bval = ((WorkData*)b)->rate;
+	return aval < bval ? 1 
+		: (aval > bval ? -1 : 0);
 }
+/// Compare function to reverse sort WorkData by their scores
 int32_t compareWorkByScoreDescending(void* a, void* b) {
-	double ascore = ((WorkData*)a)->score;
-	double bscore = ((WorkData*)b)->score;
-	if (ascore > bscore) { return -1; }
-	if (ascore < bscore) { return 1; }
-	return 0;
+	double aval = ((WorkData*)a)->score;
+	double bval = ((WorkData*)b)->score;
+	return aval < bval ? 1 
+		: (aval > bval ? -1 : 0);
 }
 
+/// Helper function to print a List<char*> to console or to a List<char>
 void printPath(List* path, List* to) {
+	// Extract count once and put on stack
 	int32_t count = path->count;
+	
+	// No destination List<char>, we printf
 	if (to == NULL) {
+		// Beginning marker
 		printf("[ ");
+		// Iterate path
 		for (int32_t i = 0; i < count; i++) {
+			// Get next ptr
 			char* str = *(char**)ListGet(path, i);
+			// print it out 
 			printf("%s ", str);
+			// and an arrow if we're not last 
 			if (i+1 < count) { printf("-> "); }
 		}
+		// Ending marker
 		printf("]");
 	} else {
+		// Otherwise, print to List<char>
+		// Add beginning chars
 		ListAddMany(to, "[ ", 2);
+		// oversized buffer for snprintf to use
 		char buffer[1024];
+		// Iterate path
 		for (int32_t i = 0; i < count; i++) {
+			// Get next ptr
 			char* str = *(char**)ListGet(path, i);
+			// snprintf (String Number Print Formatted) into buffer
 			int32_t printed = snprintf(buffer, 1024, "%s ", str);
+			// Then add characters to the List<char>
 			ListAddMany(to, buffer, printed);
-			
-			
-			if (i+1 < count) { 
-				ListAddMany(to, "-> ", 3); 
-			}
+			// Also add arrows if we're not last.
+			if (i+1 < count) {  ListAddMany(to, "-> ", 3);  }
 		}
-		// print null to terminate string
+		// print ending and null to terminate string
 		ListAddMany(to, "]\0", 2);
-		
 	}
-		
 }
-
-
 
 /// Finally, entry point.
 int main(char** argv) {
+	// Initialize string interning Map<char*, char*>
 	interned = newMap(sizeof(char*), sizeof(char*), strHash, strCompare);
 	
 	// Used these while I was developing the libraries to make sure stuff worked.
@@ -1393,8 +1434,12 @@ int main(char** argv) {
 	
 	//*
 	// Define data structures.
+	// Calling methods that act like constructors to create Maps and lists.
+	// Map<char*, Map<char*, double>>
 	graph = newMap(sizeof(char*), sizeof(Map*), strHash, strCompare);
+	// List<WorkData>
 	queue = newList(sizeof(WorkData));
+	// List<WorkData>
 	profitable = newList(sizeof(WorkData));
 	
 	// Open file for reading.
@@ -1417,7 +1462,10 @@ int main(char** argv) {
 		// If we have exactly 3, must be an input line!
 		if (parts == 3) {
 			//printf("Line %i: %s", lineNum, line);
+			
 			// Interning strings is a cheap/easy way to make sure they don't get free'd.
+			// (So long as you have a table you can store your strings in, easily check for duplicates,
+			//		and return canonical copies...)
 			// If a string has not been interned yet, I make a cannonical copy
 			//		and stick it inside of a hashmap as both the key AND value.
 			// If it already exists, I just return the canonical string from the hashmap.
@@ -1425,7 +1473,7 @@ int main(char** argv) {
 			char* to = intern(split[1]);
 			char* rateStr = split[2];
 			//printf("[%s] => [%s] : %s", from, to, rateStr);
-			
+			// like Double.parseDouble in java, but no throw, just returns 0 on failure.
 			double rate = atof(rateStr);
 			if (rate > 0) {
 				// Make sure both currencies have graphs
@@ -1433,12 +1481,15 @@ int main(char** argv) {
 				Map* toMap;
 				Map** check;
 				
+				// Check if the graph already has the nodes, and add them if they don't
 				if ((check = MapGet(graph, &from)) == NULL) {
+					// new Map<char*, double>
 					fromMap = newMap(sizeof(char*), sizeof(double), strHash, strCompare);
 					MapPut(graph, &from, &fromMap);
-				} else { fromMap = *check; }
+				} else { fromMap = *check; } 
 				
 				if ((check = MapGet(graph, &to)) == NULL) {
+					// new Map<char*, double>
 					toMap = newMap(sizeof(char*), sizeof(double), strHash, strCompare);
 					MapPut(graph, &to, &toMap);
 				} else { toMap = *check; }
@@ -1452,152 +1503,208 @@ int main(char** argv) {
 		}
 		
 		lineNum++;
+		
+		// Free the extra memory used by strSplit()...
+		// We retain our interned strings
 		freeSplits(split, parts);
+		// Also free the strdup(line);
 		free(lineCpy);
 	}
+	// Can't forget to do this...
 	fclose(fp);
+	
 	printf("Done loading graph, there are %i currencies.", graph->count);
 	
 	//printf("Printing out json representation of the graph, with lots of printfs:\n");
 	//printf("\t(also seeding work queue with workdatas!)\n");
 	//printf("{\n");
+	// Iterate all of graph's keys/values...
 	int32_t nodes = graph->count;
 	for (int32_t i = 0; i < nodes; i++) {
+		// Get pointer to pair
 		void* pos = ListGet(graph->pairs, i);
+		// Turn pos into key/value pointers...
 		KVP pair = _MapKVP(pos, graph->keySize);
+		// Dereference pointers to get actual values
 		char* nodeName = *(char**)pair.key;
 		Map* nodeRates = *(Map**)pair.val;
 		
 		//printf("\t%s: { ", nodeName);
-		int32_t transitionCount = nodeRates->count;
-		for (int32_t k = 0; k < transitionCount; k++) {
-			void* pos2 = ListGet(nodeRates->pairs, k);
-			KVP pair2 = _MapKVP(pos2, nodeRates->keySize);
-			char* targetName = *(char**)pair2.key;
-			double targetRate = *(double*)pair2.val;
+		// int32_t transitionCount = nodeRates->count;
+		// for (int32_t k = 0; k < transitionCount; k++) {
+		// 	void* pos2 = ListGet(nodeRates->pairs, k);
+		// 	KVP pair2 = _MapKVP(pos2, nodeRates->keySize);
+		// 	char* targetName = *(char**)pair2.key;
+		// 	double targetRate = *(double*)pair2.val;
 			
-			//printf("%s: %lf, ", targetName, targetRate);
-		}
+		// 	//printf("%s: %lf, ", targetName, targetRate);
+		// }
 		//printf("}\n");
 		
+		// Create new work data.
 		WorkData data;
-		// These would have been interned, so we good.
+		// Starting node name
 		data.start = nodeName;
+		// Currently at start
 		data.at = nodeName;
+		// starting with $1.00 of whatever currency.
 		data.rate = 1.0;
+		// Default score, doesn't matter till profits are made
 		data.score = 0.0;
+		// Create a new List<char*>...
 		data.path = newList(sizeof(char*));
+		// and add the starting node name to the list.
 		ListAdd(data.path, &nodeName);
 		
 		// Copy data into queue.
 		ListAdd(queue, &data);
 	}
+	
 	//printf("}\n\n");
 	printf("Graph seeded with %i queued work.\n", queue->count);
 	printf("Going now...\n", queue->count);
 	int64_t start = microtime_();
 	while (queue->count > 0) {
 		// printf("Only %i left!\n", queue->count);
-		// Copy out before remove
+		// Copy out work and remove from queue.
 		WorkData data = *(WorkData*)ListGet(queue, 0);
 		ListRemove(queue, 0);
 		
 		// printf("Currently at %s\n", data.at);
 		// printPath(data.path, NULL);
 		// printf("\n");
-		WorkData compare = stepToStart(data);
+		// Score current place by stepping it to the starting location
+		WorkData base = stepToStart(data);
 		
+		// Iterate nodes in list
 		for (int32_t i = 0; i < nodes; i++) {
+			// Get key/value pointers
 			void* pos = ListGet(graph->pairs, i);
 			KVP pair = _MapKVP(pos, graph->keySize);
+			// Extract key
 			char* key = *(char**)pair.key;
 			
+			// See if this work has already been to that node
 			if (!ListContains(data.path, &key, strCompare)) {
 				//printf("Haven't been to %s yet...\n", key);
+				// If we haven't, step there
 				WorkData trace = stepTo(data, key);
+				// then normalize and score it by stepping back to start
 				WorkData final = stepToStart(trace);
 				
-				if (final.rate > 1) { 
-					ListAdd(profitable, &final); 
-				}
-				if (final.rate >= compare.rate) { 
-					int32_t addResult = ListAdd(queue, &trace); 
-					//printf("ListAdd(queue, &trace) => %i\n", addResult);
-				}
+				// If we did better by taking that step, add the unfinished one into the queue.
+				if (final.rate >= base.rate) { ListAdd(queue, &trace); }
+				else { killList(trace.path); } // Otherwise, prevent memory leak by nuking trace's path.
 				
-			} else {
-				// skip places we've been.
-			}
-			
+				// If we are profitable by taking that step, add it to the list of profitable nodes.
+				if (final.rate > 1) { ListAdd(profitable, &final); }
+				else { killList(final.path); } // Otherwise, prevent memory leak by nuking final's path.
+				
+			} else { /* skip places we've already been. */ }
 		}
-		// Only thing that is malloc'd in work is the path list.
+		// Only thing that is malloc'd in WorkData is the path List<char*>, 
+		// kill them to prevent a memory leak.
 		killList(data.path);
+		killList(base.path);
 	}
 	int64_t end = microtime_();
 	double diff = (end - start)/1000.0;
-	int32_t profitableCount = profitable->count;
 	printf("\n\nDone!\n");
 	
-	// Create a list of chars as a StringBuilder...
+	// Create a List<char> as a StringBuilder...
 	List* strbuilder = newList_cap(sizeof(char), 1024);
-	// Another strbuilder for reuse
+	// Another List<char> for basically an arena buffer for printing paths to
 	List* pathstr = newList_cap(sizeof(char), 1024);
 	// Sort data by ascending.
 	
+	// Sort by rate ascending
 	ListSort(profitable, compareWorkByRateAscending);
+	
+	// Temp buffer and counter for snprintf
+	// Honestly could've used another List*/List<char> sized to 1024 space to begin with
 	char buffer[1024];
 	int32_t printed;
+	// Print all profitable paths by iterating the profitable List<WorkData>
+	int32_t profitableCount = profitable->count;
 	for (int32_t i = 0 ; i < profitableCount; i++) {
-		//printf("\nTook %lfms\nFound %i profitable cycles!", diff/1000.0, profitableCount);
+		// Extract WorkData from list
 		WorkData data = *(WorkData*)ListGet(profitable, i);
+		// Clear and print the path into the pathstr List<char>
 		ListClear(pathstr);
 		printPath(data.path, pathstr);
 		
+		// earned amount from $1000
 		double earned = 1000.0 * data.rate;
+		// Print it all into the buffer
 		printed = snprintf(buffer, 1024, "Path: %s, $1000 => $%.2f\n", pathstr->data, earned);
 		
+		// Copy buffer into output file strbuilder
 		ListAddMany(strbuilder, buffer, printed);
 	}
 	
-	
-	// printf("\nTook %fms\nFound %i profitable cycles!", diff, profitableCount);
-	
+	// Print other stuff out into both console and file
 	printed = snprintf(buffer, 1024, "Took %.3fms\nFound %i profitable cycles!", diff, profitableCount);
 	printf("%s", buffer);
 	ListAddMany(strbuilder, buffer, printed);
 	
+	// Find best/most efficient paths
+	
+	// Sort by criteria
 	ListSort(profitable, compareWorkByRateDescending);
+	// Grab thing from list
 	WorkData bestRate = *(WorkData*)ListGet(profitable, 0);
+	// Clear/ print path into pathstr
 	ListClear(pathstr);
 	printPath(bestRate.path, pathstr);
+	// Print to buffer
 	printed = snprintf(buffer, 1024, "\n\nBest Overall Arbitrage: {\n\tRate: %.3f,\n\tScore: %.3f,\n\tPath: %s\n}", bestRate.rate, bestRate.score, pathstr->data);
+	// print buffer to both console and file
 	printf("%s", buffer);
 	ListAddMany(strbuilder, buffer, printed);
 	
+	// And again, sort by criteria
 	ListSort(profitable, compareWorkByScoreDescending);
+	// Grab thing from list
 	WorkData bestScore = *(WorkData*)ListGet(profitable, 0);
+	// Clear/ print path into pathstr
 	ListClear(pathstr);
 	printPath(bestScore.path, pathstr);
+	// Print to buffer
 	printed = snprintf(buffer, 1024, "\n\nMost Efficient Arbitrage: {\n\tRate: %.3f,\n\tScore: %.3f,\n\tPath: %s\n}", bestScore.rate, bestScore.score, pathstr->data);
+	// Print buffer to both console and file
 	printf("%s", buffer);
 	ListAddMany(strbuilder, buffer, printed);
 	
 	//*/
 	
+	// Finally, open file to write out stuff
 	FILE* fw = fopen("outputc.txt", "w");
 	if (fw == NULL) {
 		printf("\nError: Failed to open 'outputc.txt'\n\n");
 		return -1;
 	}
+	// Print strbuilder's buffer to file
 	fprintf(fw, "%s", strbuilder->data);
 	fclose(fw);
 	
+	// Clean up our string builders
 	killList(strbuilder);
 	killList(pathstr);
 	
+	// Clean up profitable data structures
+	for (int i = 0; i < profitableCount; i++) {
+		WorkData data = *(WorkData*)ListGet(profitable, 0);
+		killList(data.path);
+	}
 	killList(profitable);
+	// Nothing should be left in queue.
 	killList(queue);
-	//killMap(graph);
 	
+	/// TBD: ouch. Iterate graph, clean it up
+	//killMap(graph);
+	// Also iterate interned Map and clean that up
+	//killMap(interned);
+	
+	//printf("Done cleaning up.\n");
 	return 0;
 }
