@@ -78,14 +78,12 @@ const char* _NULLSTR = "<NULL>";
 /// Get a standardized timestamp
 /// Best we can get that is nearly 100% portable...
 /// Requires the #include <sys/time.h>
-///
 int64_t microtime_() {
 	struct timeval t;
 	gettimeofday(&t, NULL);
 	int64_t time = t.tv_sec;
-	time *= 1000000LL;
-	time += t.tv_usec;
-	
+	time *= 1000000LL; // seconds -> microseconds
+	time += t.tv_usec; // unfortunately not nanos ;.;
 	return time;
 }
 
@@ -118,7 +116,7 @@ void qqsort(void* arr, size_t size, Compare compare, int32_t left, int32_t right
 	//printf("\t\tQQSORT @ 0x%x on %d bytes from %d to %d\n", arr, size, left, right);
 	int32_t span = right-left;
 	if (span < 1) { return; }
-	if (span < 2) { 
+	if (span < 2) {
 		void* lp = arr + (left*size);
 		void* rp = arr + (right*size);
 		int32_t comp = compare(lp, rp);
@@ -127,19 +125,22 @@ void qqsort(void* arr, size_t size, Compare compare, int32_t left, int32_t right
 		}
 		return;
 	}
-	
+	// Picking middle value is easy and unlikely to degenerate to worst case on sorted data.
 	int32_t pivot = (left + right) / 2;
 	int32_t part = qqpartition(arr, size, compare, left, right, pivot);
 	qqsort(arr, size, compare, left, part-1);
 	qqsort(arr, size, compare, part+1, right);
 }
 
-
+/// Fast hasher based on polynomial crunching
+/// Expects a char** str, but uses void* to fit into "generic" interface
 int32_t strHash(void* str) {
 	const char* cptr = *(const char**)str;
+	// Start hash
 	int32_t hash = 0;
+	// cache length
 	int32_t len = strlen(cptr);
-	
+	// Iterate string, sum, multiplying by 31 for each extra character
 	for (int32_t i = 0; i < len; i++) {
 		const char c = *(cptr + i);
 		hash = (hash * 31) + c;
@@ -148,17 +149,23 @@ int32_t strHash(void* str) {
 	return hash;
 }
 
+/// Helper function to compare two char** (aka string*) with strcmp
 int32_t strCompare(void* a, void* b) {
-	const char* astr = *(const char**)a;
-	const char* bstr = *(const char**)b;
-	int32_t result = (int32_t)strcmp(astr, bstr);
-	return result;
+	return (int32_t)strcmp(*(const char**)a, *(const char**)b);
 }
 
+/// Home-grown string split function
+/// Passes over a string, and removes any characters in a delim string.
+/// Creates a new array of duplicates of all split strings within the region.
+/// Writes out the number of strings it created to the int32_t* outLength
 char** strSplit(char* str, const char* delim, int32_t* outLength) { 
+	// Get lengths that won't change
 	int32_t length = strlen(str);
 	int32_t delims = strlen(delim);
+	
+	// Count the number of splits we make
 	int32_t splits = 0;
+	// Count the current state of the state machine
 	int32_t state = 0;
 
 	// Loop back over original string, count splits
@@ -208,6 +215,7 @@ char** strSplit(char* str, const char* delim, int32_t* outLength) {
 	return result;	
 }
 
+/// Properly frees the data created by strSplit
 void freeSplits(char** splits, int32_t length) {
 	for (int32_t i = 0; i < length; i++) { free(splits[i]); }
 	free(splits);
@@ -218,6 +226,7 @@ void freeSplits(char** splits, int32_t length) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// BLOB: bitfields
+// Dang, didn't actually make use of this one... maybe...
 
 // Get a bit from a bitfield pointer
 // returns -1 if index is negative
