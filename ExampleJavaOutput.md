@@ -1,4 +1,4 @@
-# Node Example Output
+# Java Example Output
 ```
 λ rm *.class & javac Arbitrage.java && java Arbitrage
 Done! It took 22.6227ms
