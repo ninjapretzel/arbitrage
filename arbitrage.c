@@ -60,10 +60,12 @@ const char* _NULLSTR = "<NULL>";
 		void* __ptr = (PTR);\
 		void* __ia = (__ptr) + (IA) * __size;\
 		void* __ib = (__ptr) + (IB) * __size;\
-		char __junk[__size];\
-		memcpy(__junk, __ia, __size);\
-		memcpy(__ia, __ib, __size);\
-		memcpy(__ib, __junk, __size);\
+		if (__ia != __ib) { \
+			char __junk[__size];\
+			memcpy(__junk, __ia, __size);\
+			memcpy(__ia, __ib, __size);\
+			memcpy(__ib, __junk, __size);\
+		}\
 	}\
 }
 
@@ -443,11 +445,11 @@ int32_t ListEnsureCapacity(List* this, int32_t capacity) {
 	//Additional length (in uint8_t's)
 	const int32_t addLength = length - oldLength;
 
-	uint8_t* array = (uint8_t*) realloc(this->data, length);
+	void* array = realloc(this->data, length);
 	if (array != NULL) {
 		this->data = array;
 		this->capacity = capacity;
-		uint8_t* oldEnd = array + oldLength;
+		void* oldEnd = array + oldLength;
 		memset(oldEnd, 0, addLength);
 		return 0;
 	}
@@ -466,7 +468,7 @@ int32_t ListAdd(List* this, void* elem) {
 	if (this->capacity == this->count) {
 		#ifdef DEBUG
 		#if DEBUG > 1
-			printf("ListAdd: Resizing capacity from %d to %d\n", this->capacity, 2 * this->capacity);
+			printf("\tListAdd: Resizing capacity from %d to %d\n", this->capacity, 2 * this->capacity);
 		#endif // DEBUG > 0
 		#endif // DEBUG
 		if (ListEnsureCapacity(this, (this->capacity)*2) < 0) { return 0; }
@@ -498,8 +500,8 @@ int32_t ListRemove(List* this, int32_t index) {
 	if (index < count) {
 		void* to = data + (size * index);
 		void* from = to + size;
-		// just faster to memcpy...
-		memcpy(to, from, size * (count - index));
+		// just faster to memmove...
+		memmove(to, from, size * (count - index));
 	}
 	memset(data + size * count, 0, size);
 	
@@ -572,7 +574,7 @@ int32_t ListCopy(List* a, List* b) {
 	
 #ifdef DEBUG
 #if DEBUG > 0
-	printf("\tListCopy: Copying from list with %i/%i elements into list with %i/%i elements.\n",
+	printf("\t\tListCopy: Copying from list with %i/%i elements into list with %i/%i elements.\n",
 		a->count, a->capacity,
 		b->count, b->capacity
 	);
@@ -582,14 +584,14 @@ int32_t ListCopy(List* a, List* b) {
 	if (b->capacity < a->count) {
 #ifdef DEBUG
 #if DEBUG > 0
-		printf("\tListCopy: Resizing capacity from %i to %i\n", b->capacity, a->count);
+		printf("\t\tListCopy: Resizing capacity from %i to %i\n", b->capacity, a->count);
 #endif
 #endif
 		int32_t err = ListEnsureCapacity(b, a->count);
 	
 #ifdef DEBUG
 #if DEBUG > 0
-		printf("\tListCopy: Error? %i\n", err);
+		printf("\t\tListCopy: Error? %i\n", err);
 		printList(a);
 		printList(b);
 #endif
@@ -599,14 +601,14 @@ int32_t ListCopy(List* a, List* b) {
 	
 #ifdef DEBUG
 #if DEBUG > 0
-	printf("\tListCopy: Doing memcopy(0x%x, 0x%x, %i);\n", (int32_t)b->data, (int32_t)a->data, a->size*a->capacity);
+	printf("\t\tListCopy: Doing memcopy(0x%x, 0x%x, %i);\n", (int32_t)b->data, (int32_t)a->data, a->size*a->capacity);
 #endif
 #endif
 	memcpy(b->data, a->data, a->size*a->count);
 	
 #ifdef DEBUG
 #if DEBUG > 0
-	printf("\tListCopy: Setting b->count from %i to %i\n", b->count, a->count);
+	printf("\t\tListCopy: Setting b->count from %i to %i\n", b->count, a->count);
 #endif
 #endif
 	b->count = a->count;
@@ -756,9 +758,9 @@ void MapRehash(Map* this, int32_t multiplier) {
 #ifdef DEBUG
 #if DEBUG > 0
 	if (multiplier > 1) {
-		printf("MapRehash: Debug: Resizing table from %i to %i\n", this->capacity, this->capacity*multiplier);
+		printf("\t----MapRehash: Debug: Resizing table from %i to %i\n", this->capacity, this->capacity*multiplier);
 	} else {
-		printf("MapRehash: Debug: Rehashing table of size %i\n", this->capacity);
+		printf("\t----MapRehash: Debug: Rehashing table of size %i\n", this->capacity);
 	}
 #endif
 #endif
@@ -768,7 +770,7 @@ void MapRehash(Map* this, int32_t multiplier) {
 	if (!next) {
 #ifdef DEBUG
 #if DEBUG > 0
-		printf("MapRehash: Debug: Resizing table failed.");
+		printf("\t----MapRehash: Debug: Resizing table failed.");
 #endif
 #endif
 		return;
@@ -790,7 +792,7 @@ void MapRehash(Map* this, int32_t multiplier) {
 		if (bucket == NULL) { 
 #ifdef DEBUG
 #if DEBUG > 3
-			printf("MapRehash: re-creating bucket %i\n", place);
+			printf("\t-----MapRehash: re-creating bucket %i\n", place);
 #endif
 #endif
 			bucket = newList(sizeof(void*));
@@ -798,7 +800,7 @@ void MapRehash(Map* this, int32_t multiplier) {
 				
 #ifdef DEBUG
 #if DEBUG > 0
-				printf("MapRehash: Out of memory when allocating new bucket.");
+				printf("\t-----MapRehash: Out of memory when allocating new bucket.");
 #endif
 #endif
 				error = 1; break;
@@ -818,7 +820,7 @@ void MapRehash(Map* this, int32_t multiplier) {
 	if (error) {
 #ifdef DEBUG
 #if DEBUG > 0
-		printf("MapRehash: Failed, some error occurred when resizing, need to free() junk data.\n");
+		printf("\t-----MapRehash: Failed, some error occurred when resizing, need to free() junk data.\n");
 #endif
 #endif
 		toFree = next;
@@ -826,7 +828,7 @@ void MapRehash(Map* this, int32_t multiplier) {
 	} else {
 #ifdef DEBUG
 #if DEBUG > 0
-		printf("MapRehash: Resize successful, need to free() old structures.\n");
+		printf("\t-----MapRehash: Resize successful, need to free() old structures.\n");
 #endif
 #endif
 		toFree = this->buckets;
@@ -842,7 +844,7 @@ void MapRehash(Map* this, int32_t multiplier) {
 			
 #ifdef DEBUG
 #if DEBUG > 3
-			printf("MapRehash: Killing list %i\n", i);
+			printf("\t------MapRehash: Killing list %i\n", i);
 #endif
 #endif
 			killList(list); 
@@ -853,7 +855,7 @@ void MapRehash(Map* this, int32_t multiplier) {
 	
 #ifdef DEBUG
 #if DEBUG > 0
-	printf("MapRehash: Finished..\n");
+	printf("\t----MapRehash: Finished..\n");
 #endif
 #endif
 }
@@ -880,7 +882,7 @@ int32_t MapPut(Map* this, void* key, void* val) {
 	
 #ifdef DEBUG
 #if DEBUG > 1
-	printf("MapPut: Key hashed to %i, bucket %i.\n", hash, place);
+	printf("\tMapPut: Key hashed to %i, bucket %i.\n", hash, place);
 #endif
 #endif
 	List* bucket = buckets[place];
@@ -888,7 +890,7 @@ int32_t MapPut(Map* this, void* key, void* val) {
 		bucket = newList(sizeof(void*));
 #ifdef DEBUG
 #if DEBUG > 1
-		printf("MapPut: Creating new bucket\n");
+		printf("\tMapPut: Creating new bucket\n");
 #endif
 #endif
 		
@@ -896,7 +898,7 @@ int32_t MapPut(Map* this, void* key, void* val) {
 			
 #ifdef DEBUG
 #if DEBUG > 1
-			printf("MapPut: Out of memory when allocating new bucket.\n");
+			printf("\tMapPut: Out of memory when allocating new bucket.\n");
 #endif
 #endif
 			// panic, out of memory when allocating new bucket.
@@ -907,7 +909,7 @@ int32_t MapPut(Map* this, void* key, void* val) {
 	} else {
 #ifdef DEBUG
 #if DEBUG > 1
-		printf("MapPut: Bucket already exists!!!!\n");
+		printf("\tMapPut: Bucket already exists!!!!\n");
 #endif
 #endif
 	}
@@ -922,7 +924,7 @@ int32_t MapPut(Map* this, void* key, void* val) {
 		if (compared == 0) {
 #ifdef DEBUG
 #if DEBUG > 0
-			printf("MapPut: Updating existing key/value pair\n");
+			printf("\tMapPut: Updating existing key/value pair\n");
 #endif
 #endif
 			// If we have a match, copy the value over
@@ -941,7 +943,7 @@ int32_t MapPut(Map* this, void* key, void* val) {
 	
 #ifdef DEBUG
 #if DEBUG > 0
-	printf("MapPut: Adding new key/value pair\n");
+	printf("\tMapPut: Adding new key/value pair\n");
 #endif
 #endif
 	int32_t lastCapacity = pairs->capacity;
@@ -949,6 +951,7 @@ int32_t MapPut(Map* this, void* key, void* val) {
 	// If the list resized, we unfortunately need to rehash our buckets.
 	if (pairs->capacity != lastCapacity) { 
 		MapRehash(this, 1);
+		bucket = this->buckets[place];
 	}
 	// Increment count
 	
@@ -956,7 +959,8 @@ int32_t MapPut(Map* this, void* key, void* val) {
 	void* kvp = ListGet(pairs, pairs->count-1);
 	
 	
-	ListAdd(this->buckets[place], &kvp);
+	
+	ListAdd(bucket, &kvp);
 	// Copy kvp into bucket
 	
 	// Check if we need to resize and rehash
@@ -983,14 +987,14 @@ void* MapGet(Map* this, void* key) {
 	int32_t place = hash % capacity;
 #ifdef DEBUG
 #if DEBUG > 0
-	printf("MapGet: Key hashed to %i, bucket %i.\n", hash, place);
+	printf("\t--MapGet: Key hashed to %i, bucket %i.\n", hash, place);
 #endif
 #endif
 	List* bucket = buckets[place];
 	if (bucket == NULL) { 
 #ifdef DEBUG
 #if DEBUG > 0
-		printf("MapGet: No bucket, you get a NULL.\n");
+		printf("\t--MapGet: No bucket, you get a NULL.\n");
 #endif
 #endif
 		return NULL; 
@@ -998,14 +1002,14 @@ void* MapGet(Map* this, void* key) {
 	
 #ifdef DEBUG
 #if DEBUG > 0
-	printf("MapGet: Got the bucket, looking for the thingy.\n");
+	printf("\t--MapGet: Got the bucket, looking for the thingy.\n");
 #endif
 #endif
 	int32_t cnt = bucket->count;
 	for (int32_t i = 0; i < cnt; i++) {
 #ifdef DEBUG
 #if DEBUG > 0
-		printf("MapGet: Checking bucket %i[%i].\n", place, i);
+		printf("\t--MapGet: Checking bucket %i[%i].\n", place, i);
 #endif
 #endif
 		// List stores pointers to kvp's in the listing.
@@ -1019,7 +1023,7 @@ void* MapGet(Map* this, void* key) {
 		int32_t compared = compareFn(pair.key, key);
 #ifdef DEBUG
 #if DEBUG > 0
-		printf("MapGet: Keys compared to %i.\n", compared);
+		printf("\t--MapGet: Keys compared to %i.\n", compared);
 #endif
 #endif
 		if (compared == 0) {
@@ -1029,7 +1033,7 @@ void* MapGet(Map* this, void* key) {
 	
 #ifdef DEBUG
 #if DEBUG > 0
-	printf("MapGet: Got the bucket, Key not found, have a NULL.\n");
+	printf("\t--MapGet: Got the bucket, Key not found, have a NULL.\n");
 #endif
 #endif
 	return NULL;
@@ -1437,10 +1441,13 @@ int main(char** argv) {
 	interned = newMap(sizeof(char*), sizeof(char*), strHash, strCompare);
 	
 	// Used these while I was developing the libraries to make sure stuff worked.
-	//testGarbage();
-	//testList();
-	//testMap();
+	// testGarbage();
+	// testList();
+	// testMap();
 	
+	
+// } int restOfMain(char** argv) {
+
 	//*
 	// Define data structures.
 	// Calling methods that act like constructors to create Maps and lists.
@@ -1457,7 +1464,7 @@ int main(char** argv) {
 		printf("\n Error: Failed to open 'stuff.dat'\n\n"); 
 		return -1; 
 	}
-	
+	printf("\nOpened file 'stuff.dat'\n");
 	// Oversized buffer.
 	char line[256]; memset(line, 0, ARRAY_LENGTH(line)); // no cruft thanks
 	
@@ -1522,7 +1529,7 @@ int main(char** argv) {
 	// Can't forget to do this...
 	fclose(fp);
 	
-	printf("Done loading graph, there are %i currencies.", graph->count);
+	printf("Done loading graph, there are %i currencies.\n", graph->count);
 	
 	//printf("Printing out json representation of the graph, with lots of printfs:\n");
 	//printf("\t(also seeding work queue with workdatas!)\n");
@@ -1574,18 +1581,20 @@ int main(char** argv) {
 	printf("Going now...\n", queue->count);
 	int64_t start = microtime_();
 	while (queue->count > 0) {
-		// printf("Only %i left!\n", queue->count);
+		//printf("Only %i left!\n", queue->count);
 		// Copy out work and remove from queue.
 		WorkData data = *(WorkData*)ListGet(queue, 0);
 		ListRemove(queue, 0);
 		
-		// printf("Currently at %s\n", data.at);
-		// printPath(data.path, NULL);
-		// printf("\n");
+		//printf("Currently at %s\n", data.at);
+		//printPath(data.path, NULL);
+		//printf("\n");
 		// Score current place by stepping it to the starting location
 		WorkData base = stepToStart(data);
+		//printPath(base.path, NULL);
+		//printf("\n");
 		
-		// Iterate nodes in list
+		// Iterate all nodes
 		for (int32_t i = 0; i < nodes; i++) {
 			// Get key/value pointers
 			void* pos = ListGet(graph->pairs, i);
@@ -1601,9 +1610,13 @@ int main(char** argv) {
 				// then normalize and score it by stepping back to start
 				WorkData final = stepToStart(trace);
 				
+				
 				// If we did better by taking that step, add the unfinished one into the queue.
 				if (final.rate >= base.rate) { ListAdd(queue, &trace); }
-				else { killList(trace.path); } // Otherwise, prevent memory leak by nuking trace's path.
+				else { 
+					// Otherwise, prevent memory leak by nuking trace's path.
+					killList(trace.path);
+				} 
 				
 				// If we are profitable by taking that step, add it to the list of profitable nodes.
 				if (final.rate > 1) { ListAdd(profitable, &final); }
@@ -1611,10 +1624,17 @@ int main(char** argv) {
 				
 			} else { /* skip places we've already been. */ }
 		}
+		
 		// Only thing that is malloc'd in WorkData is the path List<char*>, 
 		// kill them to prevent a memory leak.
+		// Also, it's possible that stepTo() returns a copy of the same WorkData
+		// (Eg, we are already at the starting location and step to starting location)
+		
+		int32_t diff = strcmp(data.at, base.at);
 		killList(data.path);
-		killList(base.path);
+		if (diff != 0) {
+			killList(base.path);
+		}
 	}
 	int64_t end = microtime_();
 	double diff = (end - start)/1000.0;
@@ -1692,6 +1712,9 @@ int main(char** argv) {
 		printf("\nError: Failed to open 'outputc.txt'\n\n");
 		return -1;
 	}
+	
+	char nullc = '\0';
+	ListAdd(strbuilder, &nullc);
 	// Print strbuilder's buffer to file
 	fprintf(fw, "%s", strbuilder->data);
 	fclose(fw);
@@ -1702,7 +1725,7 @@ int main(char** argv) {
 	
 	// Clean up profitable data structures
 	for (int i = 0; i < profitableCount; i++) {
-		WorkData data = *(WorkData*)ListGet(profitable, 0);
+		WorkData data = *(WorkData*)ListGet(profitable, i);
 		killList(data.path);
 	}
 	killList(profitable);
@@ -1714,6 +1737,6 @@ int main(char** argv) {
 	// Also iterate interned Map and clean that up
 	//killMap(interned);
 	
-	//printf("Done cleaning up.\n");
+	printf("\n\nDone cleaning up.\n");
 	return 0;
 }
