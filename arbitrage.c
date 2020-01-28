@@ -668,12 +668,12 @@ void killList(List* this) {
 // Debug printing list. Prints data in the list struct.
 /// this - List to print
 void printList(List* this) {
-	printf("List 0x%x -> { size: %i, capacity: %i, count: %i, data: 0x%x }\n",
-		(int32_t)this,
+	printf("List %p -> { size: %zu, capacity: %i, count: %i, data: %p }\n",
+		this,
 		this->size,
 		this->capacity,
 		this->count,
-		(int32_t)this->data
+		this->data
 	);
 }
 
@@ -870,7 +870,7 @@ int32_t MapPut(Map* this, void* key, void* val) {
 	const size_t valSize = this->valSize;
 	const HashFn hashFn = this->hashFn;
 	const CompareFn compareFn = this->compareFn;
-	int32_t count = this->count;
+	// int32_t count = this->count;
 	int32_t capacity = this->capacity;
 	List* pairs = this->pairs;
 	List** buckets = this->buckets;
@@ -972,14 +972,14 @@ void* MapGet(Map* this, void* key) {
 	if (this == NULL) { return NULL; }
 	if (key == NULL) { return NULL; }
 	const size_t keySize = this->keySize;
-	const size_t valSize = this->valSize;
+	// const size_t valSize = this->valSize;
 	const HashFn hashFn = this->hashFn;
 	const CompareFn compareFn = this->compareFn;
-	int32_t count = this->count;
+	//int32_t count = this->count;
 	int32_t capacity = this->capacity;
-	List* pairs = this->pairs;
+	// List* pairs = this->pairs;
 	List** buckets = this->buckets;
-	void* scratch = this->scratch;
+	// void* scratch = this->scratch;
 	
 	
 	int32_t hash = hashFn(key);
@@ -1083,7 +1083,7 @@ void testGarbage() {
 	
 	{ // Sorting numbers
 		int32_t crap[] = { 5, 3, 7, 6, 0, 9, 1, 8, 4, 2 };
-		printf("sorting %d stuffs\n\n", ARRAY_LENGTH(crap));
+		printf("sorting %zu stuffs\n\n", ARRAY_LENGTH(crap));
 		
 		qqsort((void*)crap, sizeof(int32_t), compareInt32s, 0, ARRAY_LENGTH(crap)-1);
 		
@@ -1100,7 +1100,7 @@ void testGarbage() {
 			V4(3,4,1,2),
 			V4(4,1,2,3),
 		};
-		printf("sorting %d stuffs\n\n", ARRAY_LENGTH(vs));
+		printf("sorting %zu stuffs\n\n", ARRAY_LENGTH(vs));
 		qqsort((void*)vs, sizeof(Vector4), compareV4ByZ, 0, ARRAY_LENGTH(vs)-1);
 		for (int32_t i = 0; i < ARRAY_LENGTH(vs); i++) {
 			Vector4 v = vs[i];
@@ -1156,12 +1156,14 @@ void testGarbage() {
 		char* lmao = intern("lmao");
 		char* yeet = intern("yeet");
 		
+		printf("%s %s %s", yeet, ayy, lmao);
+		
 		char garbage[50];
 		strcpy(garbage, "ayy");
 		
 		char* check = intern(garbage);
 		
-		printf("Addresses are 0x%08x and 0x%08x", ayy, check);
+		printf("Addresses are %p and %p", ayy, check);
 	}
 	
 }
@@ -1233,7 +1235,7 @@ void testList() {
 		ListAddMany(strbuilder, b, strlen(b));
 		ListAdd(strbuilder, &null);
 		
-		printf("built a string!: \"%s\"\n", strbuilder->data);
+		printf("built a string!: \"%s\"\n", (char*)strbuilder->data);
 		
 		killList(strbuilder);
 	}
@@ -1436,14 +1438,14 @@ void printPath(List* path, List* to) {
 }
 
 /// Finally, entry point.
-int main(char** argv) {
+int main(int argc, char** argv) {
 	// Initialize string interning Map<char*, char*>
 	interned = newMap(sizeof(char*), sizeof(char*), strHash, strCompare);
 	
 	// Used these while I was developing the libraries to make sure stuff worked.
-	// testGarbage();
-	// testList();
-	// testMap();
+	testGarbage();
+	testList();
+	testMap();
 	
 	
 // } int restOfMain(char** argv) {
@@ -1543,7 +1545,7 @@ int main(char** argv) {
 		KVP pair = _MapKVP(pos, graph->keySize);
 		// Dereference pointers to get actual values
 		char* nodeName = *(char**)pair.key;
-		Map* nodeRates = *(Map**)pair.val;
+		// Map* nodeRates = *(Map**)pair.val;
 		
 		//printf("\t%s: { ", nodeName);
 		// int32_t transitionCount = nodeRates->count;
@@ -1578,7 +1580,7 @@ int main(char** argv) {
 	
 	//printf("}\n\n");
 	printf("Graph seeded with %i queued work.\n", queue->count);
-	printf("Going now...\n", queue->count);
+	printf("Going now...\n");
 	int64_t start = microtime_();
 	while (queue->count > 0) {
 		//printf("Only %i left!\n", queue->count);
@@ -1665,7 +1667,7 @@ int main(char** argv) {
 		// earned amount from $1000
 		double earned = 1000.0 * data.rate;
 		// Print it all into the buffer
-		printed = snprintf(buffer, 1024, "Path: %s, $1000 => $%.2f\n", pathstr->data, earned);
+		printed = snprintf(buffer, 1024, "Path: %s, $1000 => $%.2f\n", (char*)pathstr->data, earned);
 		
 		// Copy buffer into output file strbuilder
 		ListAddMany(strbuilder, buffer, printed);
@@ -1686,7 +1688,7 @@ int main(char** argv) {
 	ListClear(pathstr);
 	printPath(bestRate.path, pathstr);
 	// Print to buffer
-	printed = snprintf(buffer, 1024, "\n\nBest Overall Arbitrage: {\n\tRate: %.3f,\n\tScore: %.3f,\n\tPath: %s\n}", bestRate.rate, bestRate.score, pathstr->data);
+	printed = snprintf(buffer, 1024, "\n\nBest Overall Arbitrage: {\n\tRate: %.3f,\n\tScore: %.3f,\n\tPath: %s\n}", bestRate.rate, bestRate.score, (char*)pathstr->data);
 	// print buffer to both console and file
 	printf("%s", buffer);
 	ListAddMany(strbuilder, buffer, printed);
@@ -1699,7 +1701,7 @@ int main(char** argv) {
 	ListClear(pathstr);
 	printPath(bestScore.path, pathstr);
 	// Print to buffer
-	printed = snprintf(buffer, 1024, "\n\nMost Efficient Arbitrage: {\n\tRate: %.3f,\n\tScore: %.3f,\n\tPath: %s\n}", bestScore.rate, bestScore.score, pathstr->data);
+	printed = snprintf(buffer, 1024, "\n\nMost Efficient Arbitrage: {\n\tRate: %.3f,\n\tScore: %.3f,\n\tPath: %s\n}", bestScore.rate, bestScore.score, (char*)pathstr->data);
 	// Print buffer to both console and file
 	printf("%s", buffer);
 	ListAddMany(strbuilder, buffer, printed);
@@ -1716,7 +1718,7 @@ int main(char** argv) {
 	char nullc = '\0';
 	ListAdd(strbuilder, &nullc);
 	// Print strbuilder's buffer to file
-	fprintf(fw, "%s", strbuilder->data);
+	fprintf(fw, "%s", (char*)strbuilder->data);
 	fclose(fw);
 	
 	// Clean up our string builders
